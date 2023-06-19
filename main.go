@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/png"
 	"os"
+	"regexp"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
@@ -20,7 +21,7 @@ var Width = flag.Int("width", 256, "Width of output image.")
 var Format = flag.String("format", "QR-Code", "One of { QR-Code, 2-of-5, ... }")
 
 // Specific to... 2-of-5
-var Interleaved = flag.Bool("interleaved", true, "2-of-5 interlaeved mode")
+var Interleaved = flag.Bool("interleaved", false, "2-of-5 interlaeved mode")
 
 /*
 2-of-5
@@ -66,7 +67,7 @@ func main() {
 		}
 
 		// Scale the barcode to 200x200 pixels
-		qrCode, err = barcode.Scale(qrCode, *Height, *Width)
+		qrCode, err = barcode.Scale(qrCode, *Width, *Height)
 		if err != nil {
 			dbgo.Fprintf(os.Stderr, "Error: %s AT %(LF)\n", err)
 			os.Exit(1)
@@ -88,7 +89,21 @@ func main() {
 	case "2-of-5":
 
 		// xyzzy - should check that it is all digits!
-		// xyzzy - Enven umber of digits if --interleaved
+		numeric := regexp.MustCompile(`\d`).MatchString(*TextToEncode)
+		if !numeric {
+			fmt.Fprintf(os.Stderr, "2-of-5 can only encode digits, 0...9\n")
+			os.Exit(1)
+		}
+
+		// Enven umber of digits if --interleaved
+		if *Interleaved {
+			if len(*TextToEncode)%2 != 0 {
+				fmt.Fprintf(os.Stderr, "An odd length of %d can not use --interleaved=%v\n", len(*TextToEncode), *Interleaved)
+				os.Exit(1)
+			}
+		}
+
+		// fmt.Printf("Mod %d Len %d *Interleaved %v\n", len(*TextToEncode)%2, len(*TextToEncode), *Interleaved)
 
 		// barCode, err := twooffive.Encode(*TextToEncode, interleaved)
 		barCode, err := twooffive.Encode(*TextToEncode, *Interleaved)
@@ -97,7 +112,7 @@ func main() {
 		} else {
 
 			// Scale the barcode to 200x200 pixels
-			barCode, err = barcode.Scale(barCode, *Height, *Width)
+			barCode, err = barcode.Scale(barCode, *Width, *Height)
 			if err != nil {
 				dbgo.Fprintf(os.Stderr, "Error: %s AT %(LF)\n", err)
 				os.Exit(1)
